@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/background">
+        <file>images/background.png</file>
+        <file>images/calculate_button.png</file>
+        <file>images/heading.png</file>
+        <file>images/result_text_1.png</file>
+        <file>images/result_text_2.png</file>
+        <file>images/result_text_3.png</file>
+        <file>images/substrate.png</file>
+        <file>images/text_cup_weight.png</file>
+        <file>images/text_total_weight.png</file>
+        <file>images/calculate_button_press.png</file>
+    </qresource>
+</RCC>
