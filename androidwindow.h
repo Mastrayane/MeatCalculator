@@ -17,6 +17,8 @@ public:
     explicit AndroidWindow(QWidget *parent = nullptr);
     ~AndroidWindow();
 
+    void SetInterface(); // Инициализация интерфейса
+
 private:
     void SetPixmap(const QString path); // Установка активного изображения
     void SetPixmap(QWidget* widget, const QString& path); // Установка изображения для виджета
@@ -34,6 +36,11 @@ private:
     Ui::AndroidWindow *ui; // Указатель на интерфейс
     QPixmap active_pixmap; // Активное изображение
     QLabel lbl_new_{this}; // Метка для изображения
+
+private slots:
+    void on_pushButton_clicked(); // Слот для обработки нажатия кнопки
+    void on_pushButton_released(); // Слот для обработки отпускания кнопки
+    void on_pushButton_pressed(); // Слот для обработки нажатой кнопки
 };
 
 #endif // ANDROIDWINDOW_H

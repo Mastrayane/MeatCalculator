@@ -32,3 +32,14 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resources.qrc
+
+# Укажите поддерживаемые архитектуры процессоров
+ANDROID_ABIS = arm64-v8a # x86 x86_64
+
+# Минимальная версия Android (API 21 = Android 5.0 Lollipop)
+ANDROID_MIN_SDK_VERSION = 21
+
+# Целевая версия Android (API 33 = Android 13)
+ANDROID_TARGET_SDK_VERSION = 34
+
+TEMPLATE = app
