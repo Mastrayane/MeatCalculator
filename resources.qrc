@@ -1,7 +1,6 @@
 <RCC>
     <qresource prefix="/background">
         <file>images/background.png</file>
-        <file>images/calculate_button.png</file>
         <file>images/heading.png</file>
         <file>images/result_text_1.png</file>
         <file>images/result_text_2.png</file>
@@ -10,5 +9,20 @@
         <file>images/text_cup_weight.png</file>
         <file>images/text_total_weight.png</file>
         <file>images/calculate_button_press.png</file>
+        <file>images/calculate_button.png</file>
+        <file>images/text_total_weight@3x.png</file>
+        <file>images/text_cup_weight@3x.png</file>
+        <file>images/substrate@3x.png</file>
+        <file>images/result_text_3@3x.png</file>
+        <file>images/result_text_2@3x.png</file>
+        <file>images/result_text_1@3x.png</file>
+        <file>images/heading@3x.png</file>
+        <file>images/calculate_button@3x.png</file>
+        <file>images/background@3x.png</file>
+    </qresource>
+    <qresource prefix="/img_android">
+        <file>images/android/text_total_weight_android.png</file>
+        <file>images/android/text_cup_weight_android.png</file>
+        <file>images/android/heading_android.png</file>
     </qresource>
 </RCC>

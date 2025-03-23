@@ -1,0 +1,177 @@
+#include "androidwindow.h"
+#include "ui_androidwindow.h"
+#include <QScreen>
+
+
+AndroidWindow::AndroidWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::AndroidWindow)
+{
+    ui->setupUi(this);
+
+    SetInterface();
+}
+
+AndroidWindow::~AndroidWindow()
+{
+    delete ui;
+}
+
+void AndroidWindow::SetInterface()
+{
+    // Получаем доступную геометрию экрана (без учета системных панелей)
+    QRect screenGeometry = QGuiApplication::primaryScreen()->availableGeometry();
+
+    // Устанавливаем размер окна равным размеру экрана
+    this->setFixedSize(screenGeometry.size());
+
+    // Центрируем окно (опционально)
+    this->move(screenGeometry.topLeft());
+
+    SetFolder(":/background/images/background.png"); // Установка фонового изображения
+    SetPixmap(ui->le_heading, ":/img_android/images/android/heading_android.png"); // установка надписи заголовка
+
+    // SetPixmap(ui->verticalLayout_7, ":/background/images/substrate.png"); // установка плашки подолжки
+    SetPixmap(ui->widget_substrate, ":/background/images/substrate.png"); // установка плашки подолжки
+
+    // Устананавливаем блок ввода данных
+    ui->le_input_total_weight->setStyleSheet("background: white; color: black;");
+    ui->le_input_cup_weight->setStyleSheet("background: white; color: black;");
+
+    SetPixmap(ui->lb_total_weight, ":/img_android/images/android/text_total_weight_android.png");
+    SetPixmap(ui->lb_cup_weight, ":/img_android/images/android/text_cup_weight_android.png");
+
+    // Устанавливаем изображение для кнопки
+    ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
+    ui->pushButton->setIconSize(QSize(300, 100));
+
+    // Устанавливаем блок вывода результатов
+    SetPixmap(ui->lb_1_output, ":/background/images/result_text_1.png");
+    SetPixmap(ui->lb_2_output, ":/background/images/result_text_2.png");
+    SetPixmap(ui->lb_3_output, ":/background/images/result_text_3.png");
+
+    ui->le_1_output->setStyleSheet("background: white; color: rgb(255,107,85)");
+    ui->le_2_output->setStyleSheet("background: white; color: rgb(255,107,85)");
+    ui->le_3_output->setStyleSheet("background: white; color: rgb(255,107,85)");
+
+    FitImage();
+}
+
+void AndroidWindow::SetPixmap(const QString path) {
+    active_pixmap = QPixmap(path);
+}
+
+void AndroidWindow::SetPixmap(QWidget* widget, const QString& path) {
+    QPixmap pix(path);
+    if (pix.isNull()) return;
+
+    QPixmap scaledPix = pix.scaled(widget->size(),
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation);
+
+    if (auto label = qobject_cast<QLabel*>(widget)) {
+        label->setPixmap(scaledPix);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet("background: transparent;");
+        label->setScaledContents(true); // Отключено авторастяжение
+    } else {
+        widget->setStyleSheet(
+            QString("background-image: url(%1); background-repeat: no-repeat;"
+                    "background-position: center; background-color: transparent;")
+                .arg(path)
+            );
+    }
+}
+
+void AndroidWindow::SetFolder(const QString &d) {
+    SetPixmap(d);
+}
+
+void AndroidWindow::MakeCalculations()
+{
+    bool ok;
+    int int_total_weight = ui->le_input_total_weight->text().toInt(&ok);
+
+    if (ok) {
+        // Преобразование прошло успешно, можно использовать значение t
+        qDebug() << "Введенное число:" << int_total_weight;
+    } else {
+        // Преобразование не удалось, возможно, введен некорректный текст
+        qDebug() << "Ошибка: введено не число!";
+    }
+
+    int int_cup_weight = ui->le_input_cup_weight->text().toInt(&ok);
+
+    if (ok) {
+        // Преобразование прошло успешно, можно использовать значение t
+        qDebug() << "Введенное число:" << int_cup_weight;
+    } else {
+        // Преобразование не удалось, возможно, введен некорректный текст
+        qDebug() << "Ошибка: введено не число!";
+    }
+
+
+    int weight_day = int_total_weight / 4;
+
+    std::vector<QLineEdit*> le_outputs = {ui->le_1_output, ui->le_2_output, ui->le_3_output};
+
+    for (auto le_output : le_outputs) {
+        int_total_weight -= weight_day;
+        le_output->setText(QString::number(int_total_weight + int_cup_weight));
+    }
+}
+
+void AndroidWindow::FitImage() {
+    if (active_pixmap.isNull()) return;
+
+    // Получаем текущий размер окна
+    QSize windowSize = this->size();
+
+    // Масштабируем изображение с сохранением пропорций
+    QPixmap scaledPix = active_pixmap.scaled(
+        windowSize,
+        Qt::KeepAspectRatioByExpanding, // Заполняет экран без искажений
+        Qt::SmoothTransformation
+        );
+
+    // Центрируем изображение
+    int x = (windowSize.width() - scaledPix.width()) / 2;
+    int y = (windowSize.height() - scaledPix.height()) / 2;
+
+    lbl_new_.setPixmap(scaledPix);
+    lbl_new_.setFixedSize(scaledPix.size());
+    lbl_new_.move(x, y); // Центрируем вместо (0, 0)
+}
+
+void AndroidWindow::resizeEvent(QResizeEvent *event) {
+    QMainWindow::resizeEvent(event);
+    FitImage();
+}
+
+void AndroidWindow::showEvent(QShowEvent *event) {
+    QMainWindow::showEvent(event);
+    FitImage();
+}
+
+void AndroidWindow::on_pushButton_clicked()
+{
+    MakeCalculations();
+}
+
+
+void AndroidWindow::on_pushButton_released()
+{
+    // Возвращаем исходное изображение при отпускании
+    ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
+    ui->pushButton->setIconSize(QSize(300, 100));
+}
+
+
+void AndroidWindow::on_pushButton_pressed()
+{
+    // Меняем изображение при нажатии
+    ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
+    ui->pushButton->setIconSize(QSize(300, 100));
+}
+
+
