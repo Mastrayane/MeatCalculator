@@ -34,4 +34,7 @@
         <file>images/svg/result_text_2.svg</file>
         <file>images/svg/result_text_1.svg</file>
     </qresource>
+    <qresource prefix="/icon">
+        <file>images/icon.png</file>
+    </qresource>
 </RCC>

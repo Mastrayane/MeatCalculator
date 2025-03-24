@@ -2,12 +2,14 @@
 #include "androidwindow.h"
 
 #include <QApplication>
+#include <QIcon>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-
+    // Установка иконки приложения
+    a.setWindowIcon(QIcon(":/icon/images/icon.png"));
 #ifdef Q_OS_ANDROID
     AndroidWindow w; // Создаем окно для Android
 #else
