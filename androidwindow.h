@@ -4,7 +4,6 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QGuiApplication>
-#include <optional>
 
 namespace Ui {
 class AndroidWindow;
@@ -22,6 +21,7 @@ public:
 
 private:
     void SetPixmap(const QString path); // Установка активного изображения
+    QPixmap applyVignetteEffect(const QPixmap& original, float intensity = 0.7, float radius = 0.5); // Виньетирование фонового изображения
     void SetPixmap(QWidget* widget, const QString& path, double multiplicity_size = 1.0); // Установка изображения для виджета
     void FitImage(); // Подгонка изображения под размер окна
     void SetFolder(const QString& d); // Установка фонового изображения

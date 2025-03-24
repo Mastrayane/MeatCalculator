@@ -60,6 +60,39 @@ void AndroidWindow::SetInterface()
 
 void AndroidWindow::SetPixmap(const QString path) {
     active_pixmap = QPixmap(path);
+    if (!active_pixmap.isNull()) {
+        // Применяем эффект виньетирования
+        active_pixmap = applyVignetteEffect(active_pixmap);
+        FitImage();
+    }
+}
+
+QPixmap AndroidWindow::applyVignetteEffect(const QPixmap &original, float intensity, float radius)
+{
+    QImage image = original.toImage();
+    if (image.isNull()) return original;
+
+    int width = image.width();
+    int height = image.height();
+    float centerX = width / 2.0f;
+    float centerY = height / 2.0f;
+    float maxDist = qSqrt(centerX * centerX + centerY * centerY) * radius;
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            float dist = qSqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY));
+            float factor = qMax(0.0f, 1.0f - intensity * (dist / maxDist));
+
+            QRgb pixel = image.pixel(x, y);
+            int r = qRed(pixel) * factor;
+            int g = qGreen(pixel) * factor;
+            int b = qBlue(pixel) * factor;
+
+            image.setPixel(x, y, qRgb(r, g, b));
+        }
+    }
+
+    return QPixmap::fromImage(image);
 }
 
 void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multiplicity_size) {
