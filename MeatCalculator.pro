@@ -43,3 +43,6 @@ ANDROID_MIN_SDK_VERSION = 21
 ANDROID_TARGET_SDK_VERSION = 34
 
 TEMPLATE = app
+
+# Указываем папку с Android-ресурсами (опционально)
+ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
