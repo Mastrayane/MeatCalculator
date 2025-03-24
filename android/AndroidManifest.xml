@@ -15,7 +15,7 @@
     <application
         android:name="org.qtproject.qt.android.bindings.QtApplication"
         android:hardwareAccelerated="true"
-        android:label="MeatCalculator"
+        android:label="Калькулятор мясонька"
 		android:icon="@drawable/icon"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
