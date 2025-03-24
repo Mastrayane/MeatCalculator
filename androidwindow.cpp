@@ -1,6 +1,9 @@
 #include "androidwindow.h"
 #include "ui_androidwindow.h"
 #include <QScreen>
+#include <QSvgRenderer>
+#include <QPainter>
+#include <QTimer>
 
 
 AndroidWindow::AndroidWindow(QWidget *parent)
@@ -28,27 +31,25 @@ void AndroidWindow::SetInterface()
     // Центрируем окно (опционально)
     this->move(screenGeometry.topLeft());
 
-    SetFolder(":/background/images/background.png"); // Установка фонового изображения
+    SetFolder(":/background/images/background_blurry.png"); // Установка фонового изображения
     SetPixmap(ui->le_heading, ":/img_android/images/android/heading_android.png"); // установка надписи заголовка
-
-    // SetPixmap(ui->verticalLayout_7, ":/background/images/substrate.png"); // установка плашки подолжки
     SetPixmap(ui->widget_substrate, ":/background/images/substrate.png"); // установка плашки подолжки
 
     // Устананавливаем блок ввода данных
     ui->le_input_total_weight->setStyleSheet("background: white; color: black;");
     ui->le_input_cup_weight->setStyleSheet("background: white; color: black;");
 
-    SetPixmap(ui->lb_total_weight, ":/img_android/images/android/text_total_weight_android.png");
-    SetPixmap(ui->lb_cup_weight, ":/img_android/images/android/text_cup_weight_android.png");
+    SetPixmap(ui->lb_total_weight, ":/svg/images/svg/text_total_weight.svg", 2.0);
+    SetPixmap(ui->lb_cup_weight, ":/svg/images/svg/text_cup_weight.svg", 2.0);
 
     // Устанавливаем изображение для кнопки
     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
     ui->pushButton->setIconSize(QSize(300, 100));
 
     // Устанавливаем блок вывода результатов
-    SetPixmap(ui->lb_1_output, ":/background/images/result_text_1.png");
-    SetPixmap(ui->lb_2_output, ":/background/images/result_text_2.png");
-    SetPixmap(ui->lb_3_output, ":/background/images/result_text_3.png");
+    SetPixmap(ui->lb_1_output, ":/svg/images/svg/result_text_1.svg", 1.5);
+    SetPixmap(ui->lb_2_output, ":/svg/images/svg/result_text_2.svg", 1.5);
+    SetPixmap(ui->lb_3_output, ":/svg/images/svg/result_text_3.svg", 1.5);
 
     ui->le_1_output->setStyleSheet("background: white; color: rgb(255,107,85)");
     ui->le_2_output->setStyleSheet("background: white; color: rgb(255,107,85)");
@@ -61,25 +62,52 @@ void AndroidWindow::SetPixmap(const QString path) {
     active_pixmap = QPixmap(path);
 }
 
-void AndroidWindow::SetPixmap(QWidget* widget, const QString& path) {
-    QPixmap pix(path);
-    if (pix.isNull()) return;
+void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multiplicity_size) {
+    if (path.endsWith(".svg", Qt::CaseInsensitive)) {
+        // Для SVG используем QSvgRenderer
+        QSvgRenderer renderer(path);
+        if (!renderer.isValid()) return;
 
-    QPixmap scaledPix = pix.scaled(widget->size(),
-                                   Qt::KeepAspectRatio,
-                                   Qt::SmoothTransformation);
+        // Увеличьте размер SVG-изображения
+        QSize widgetSize = widget->size();
+        QSize scaledSize = widgetSize * multiplicity_size; // Увеличьте в 2 раза (или другое значение)
 
-    if (auto label = qobject_cast<QLabel*>(widget)) {
-        label->setPixmap(scaledPix);
-        label->setAlignment(Qt::AlignCenter);
-        label->setStyleSheet("background: transparent;");
-        label->setScaledContents(true); // Отключено авторастяжение
+        QPixmap pix(scaledSize);
+        pix.fill(Qt::transparent); // Прозрачный фон
+        QPainter painter(&pix);
+        renderer.render(&painter, pix.rect());
+
+        if (auto label = qobject_cast<QLabel*>(widget)) {
+            label->setPixmap(pix);
+            label->setAlignment(Qt::AlignCenter);
+            label->setStyleSheet("background: transparent;");
+        } else {
+            widget->setStyleSheet(
+                QString("background-image: url(%1); background-repeat: no-repeat;"
+                        "background-position: center; background-color: transparent;")
+                    .arg(path)
+                );
+        }
     } else {
-        widget->setStyleSheet(
-            QString("background-image: url(%1); background-repeat: no-repeat;"
-                    "background-position: center; background-color: transparent;")
-                .arg(path)
-            );
+        // Для растровых изображений (PNG, JPEG и т.д.)
+        QPixmap pix(path);
+        if (pix.isNull()) return;
+
+        QPixmap scaledPix = pix.scaled(widget->size(),
+                                       Qt::KeepAspectRatio,
+                                       Qt::SmoothTransformation);
+
+        if (auto label = qobject_cast<QLabel*>(widget)) {
+            label->setPixmap(scaledPix);
+            label->setAlignment(Qt::AlignCenter);
+            label->setStyleSheet("background: transparent;");
+        } else {
+            widget->setStyleSheet(
+                QString("background-image: url(%1); background-repeat: no-repeat;"
+                        "background-position: center; background-color: transparent;")
+                    .arg(path)
+                );
+        }
     }
 }
 
@@ -118,6 +146,7 @@ void AndroidWindow::MakeCalculations()
     for (auto le_output : le_outputs) {
         int_total_weight -= weight_day;
         le_output->setText(QString::number(int_total_weight + int_cup_weight));
+
     }
 }
 
@@ -155,7 +184,15 @@ void AndroidWindow::showEvent(QShowEvent *event) {
 
 void AndroidWindow::on_pushButton_clicked()
 {
-    MakeCalculations();
+    SetFolder(":/background/images/background_click.png");
+    FitImage();
+    QTimer::singleShot(150, this, [this]() {
+        // Код, который выполнится через 500 мс
+        SetFolder(":/background/images/background_blurry.png");
+        FitImage();
+        MakeCalculations();
+    });
+
 }
 
 
@@ -164,6 +201,8 @@ void AndroidWindow::on_pushButton_released()
     // Возвращаем исходное изображение при отпускании
     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
     ui->pushButton->setIconSize(QSize(300, 100));
+    // SetFolder(":/background/images/background_blurry.png");
+   // FitImage();
 }
 
 
@@ -172,6 +211,7 @@ void AndroidWindow::on_pushButton_pressed()
     // Меняем изображение при нажатии
     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
     ui->pushButton->setIconSize(QSize(300, 100));
+
 }
 
 

@@ -48,10 +48,10 @@
       <x>11</x>
       <y>170</y>
       <width>371</width>
-      <height>541</height>
+      <height>571</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout_6" stretch="2,0,0,1">
+    <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0,0,1">
      <property name="spacing">
       <number>0</number>
      </property>
@@ -64,13 +64,13 @@
         <number>38</number>
        </property>
        <property name="topMargin">
-        <number>45</number>
+        <number>0</number>
        </property>
        <property name="rightMargin">
         <number>38</number>
        </property>
        <property name="bottomMargin">
-        <number>20</number>
+        <number>0</number>
        </property>
        <item>
         <widget class="QWidget" name="widget_substrate" native="true">
@@ -86,7 +86,7 @@
             <item>
              <widget class="QLabel" name="lb_total_weight">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -107,6 +107,11 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
+              <property name="font">
+               <font>
+                <pointsize>14</pointsize>
+               </font>
+              </property>
               <property name="alignment">
                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
               </property>
@@ -119,7 +124,7 @@
             <item>
              <widget class="QLabel" name="lb_cup_weight">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
@@ -139,6 +144,11 @@
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>14</pointsize>
+               </font>
               </property>
              </widget>
             </item>
@@ -690,12 +700,15 @@
        </item>
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_5">
+         <property name="spacing">
+          <number>20</number>
+         </property>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
             <widget class="QLabel" name="lb_1_output">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -755,7 +768,7 @@
              </property>
              <property name="font">
               <font>
-               <pointsize>11</pointsize>
+               <pointsize>20</pointsize>
                <bold>true</bold>
               </font>
              </property>
@@ -777,7 +790,7 @@
            <item>
             <widget class="QLabel" name="lb_2_output">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -807,6 +820,7 @@
              </property>
              <property name="font">
               <font>
+               <pointsize>20</pointsize>
                <bold>true</bold>
               </font>
              </property>
@@ -825,7 +839,7 @@
            <item>
             <widget class="QLabel" name="lb_3_output">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -855,6 +869,7 @@
              </property>
              <property name="font">
               <font>
+               <pointsize>20</pointsize>
                <bold>true</bold>
               </font>
              </property>
