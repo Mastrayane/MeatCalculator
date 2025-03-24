@@ -19,10 +19,19 @@
         <file>images/heading@3x.png</file>
         <file>images/calculate_button@3x.png</file>
         <file>images/background@3x.png</file>
+        <file>images/background_blurry.png</file>
+        <file>images/background_click.png</file>
     </qresource>
     <qresource prefix="/img_android">
         <file>images/android/text_total_weight_android.png</file>
         <file>images/android/text_cup_weight_android.png</file>
         <file>images/android/heading_android.png</file>
+    </qresource>
+    <qresource prefix="/svg">
+        <file>images/svg/text_total_weight.svg</file>
+        <file>images/svg/text_cup_weight.svg</file>
+        <file>images/svg/result_text_3.svg</file>
+        <file>images/svg/result_text_2.svg</file>
+        <file>images/svg/result_text_1.svg</file>
     </qresource>
 </RCC>
