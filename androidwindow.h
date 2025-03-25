@@ -1,23 +1,29 @@
 #ifndef ANDROIDWINDOW_H
 #define ANDROIDWINDOW_H
 
-#include "qabstractanimation.h"
+#define DEBUG_ANIMATION 1
+
 #include <QMainWindow>
 #include <QLabel>
-#include <QGuiApplication>
-#include <QSequentialAnimationGroup>  // Добавьте этот include
+#include <QSequentialAnimationGroup>
 #include <QPropertyAnimation>
+#include <QParallelAnimationGroup>
+#include <QPointer>
+#include <functional>
+#include <QPauseAnimation>
 
 namespace Ui {
 class AndroidWindow;
 }
 
-// Параметры анимации фона
-    struct AnimationFrame {
+// Структура для параметров анимации каждого кадра
+struct AnimationFrame {
     QString imagePath;
     float vignetteIntensity;
     float vignetteRadius;
     int duration;
+    bool hideWidgets;
+    QString debugName; // Добавляем поле для отладочной информации
 };
 
 class AndroidWindow : public QMainWindow
@@ -31,37 +37,42 @@ public:
     void SetInterface(); // Инициализация интерфейса
 
 private:
-    void SetPixmap(const QString path); // Установка активного изображения
-    QPixmap applyVignetteEffect(const QPixmap& original, float intensity = 0.7, float radius = 0.5); // Виньетирование фонового изображения
-    // Добавляем метод для установки изображения с параметрами виньетирования
-    void SetPixmapWithVignette(const QString& path,
-                               float intensity = 0.7f,
-                               float radius = 0.5f);
-    void SetPixmap(QWidget* widget, const QString& path, double multiplicity_size = 1.0); // Установка изображения для виджета
-    void FitImage(); // Подгонка изображения под размер окна
-    void SetFolder(const QString& d); // Установка фонового изображения
-    void UpdateQLabelSize(); // Обновление размеров QLabel
-    void MakeCalculations(); // Выполнение расчетов
+    // Методы работы с изображениями
+    void SetPixmap(const QString path);
+    QPixmap applyVignetteEffect(const QPixmap& original, float intensity = 0.7f, float radius = 0.5f);
+    void SetPixmapWithVignette(const QString& path, float intensity = 0.7f, float radius = 0.5f);
+    void SetPixmap(QWidget* widget, const QString& path, double multiplicity_size = 1.0);
+    void FitImage();
+    void SetFolder(const QString& d);
 
-    void resizeEvent(QResizeEvent *event) override; // Обработчик изменения размера окна
+    // Методы анимации
+    void crossFadeToImage(const QString& newImagePath, float intensity, float radius, int duration);
+    void addComplexTransition(QSequentialAnimationGroup* group, const AnimationFrame& frame);
+    QLabel* createOverlayLabel();
 
-protected:
-    void showEvent(QShowEvent *event) override; // Обработчик события отображения окна
+
+    // Вспомогательные методы
+    void UpdateQLabelSize();
+    void MakeCalculations();
+    QList<QWidget*> getAllWidgets();
+    void setWidgetsVisible(bool visible);
+
+    // Обработчики событий
+    void resizeEvent(QResizeEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
-    Ui::AndroidWindow *ui; // Указатель на интерфейс
-    QPixmap active_pixmap; // Активное изображение
-    QLabel lbl_new_{this}; // Метка для изображения
+    Ui::AndroidWindow *ui;       // Указатель на UI
+    QPixmap active_pixmap;       // Текущее фоновое изображение
+    QLabel lbl_new_{this};       // Метка для отображения фона
+    QPointer<QSequentialAnimationGroup> currentAnimation; // Указатель на текущую анимацию
 
-    void addImageTransition(QSequentialAnimationGroup *group,
-                            const AnimationFrame& frame); // Анимация
-
-    void setWidgetsVisible(bool visible); // Управление видимостью виджетов
-    QList<QWidget*> getAllWidgets(); // Получение списка всех виджетов (кроме фона)
 private slots:
-    void on_pushButton_clicked(); // Слот для обработки нажатия кнопки
-    void on_pushButton_released(); // Слот для обработки отпускания кнопки
-    void on_pushButton_pressed(); // Слот для обработки нажатой кнопки
+    void on_pushButton_clicked();    // Обработчик нажатия кнопки
+    void on_pushButton_released();   // Обработчик отпускания кнопки
+    void on_pushButton_pressed();    // Обработчик нажатия кнопки
+    void fadeWidgets(bool fadeIn, int duration, std::function<void()> callback = nullptr);
+     // Удаляем параметр по умолчанию из объявления
 };
 
 #endif // ANDROIDWINDOW_H

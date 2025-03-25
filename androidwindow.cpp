@@ -6,59 +6,72 @@
 #include <QTimer>
 #include <QFile>
 #include <QPointer>
-
+#include <QEasingCurve>
 
 AndroidWindow::AndroidWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::AndroidWindow)
+    : QMainWindow(parent), ui(new Ui::AndroidWindow)
 {
     ui->setupUi(this);
-
-    SetInterface();
+    SetInterface(); // Инициализация интерфейса при создании окна
 }
 
 AndroidWindow::~AndroidWindow()
 {
-    delete ui;
+    delete ui; // Освобождаем ресурсы UI
 }
 
+// Инициализация пользовательского интерфейса
 void AndroidWindow::SetInterface()
 {
-    // Получаем доступную геометрию экрана (без учета системных панелей)
+    // Настройка размеров окна под экран
     QRect screenGeometry = QGuiApplication::primaryScreen()->availableGeometry();
-
-    // Устанавливаем размер окна равным размеру экрана
     this->setFixedSize(screenGeometry.size());
-
-    // Центрируем окно (опционально)
     this->move(screenGeometry.topLeft());
 
-    SetFolder(":/background/images/background_blurry.png"); // Установка фонового изображения
-    SetPixmap(ui->le_heading, ":/img_android/images/android/heading_android.png"); // установка надписи заголовка
-    SetPixmap(ui->widget_substrate, ":/background/images/substrate.png"); // установка плашки подолжки
+    // Установка начального фона
+    SetFolder(":/background/images/background_blurry.png");
 
-    // Устананавливаем блок ввода данных
+    // Настройка элементов интерфейса
+    SetPixmap(ui->le_heading, ":/img_android/images/android/heading_android.png");
+    SetPixmap(ui->widget_substrate, ":/background/images/substrate.png");
+
+    // Стилизация полей ввода
     ui->le_input_total_weight->setStyleSheet("background: white; color: black;");
     ui->le_input_cup_weight->setStyleSheet("background: white; color: black;");
 
+    // Установка текстовых меток
     SetPixmap(ui->lb_total_weight, ":/svg/images/svg/text_total_weight.svg", 2.0);
     SetPixmap(ui->lb_cup_weight, ":/svg/images/svg/text_cup_weight.svg", 2.0);
 
-    // Устанавливаем изображение для кнопки
+    // Настройка кнопки
     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
     ui->pushButton->setIconSize(QSize(300, 100));
 
-    // Устанавливаем блок вывода результатов
+    // Настройка блоков вывода
     SetPixmap(ui->lb_1_output, ":/svg/images/svg/result_text_1.svg", 1.5);
     SetPixmap(ui->lb_2_output, ":/svg/images/svg/result_text_2.svg", 1.5);
     SetPixmap(ui->lb_3_output, ":/svg/images/svg/result_text_3.svg", 1.5);
 
+    // Стилизация полей вывода
     ui->le_1_output->setStyleSheet("background: white; color: rgb(255,107,85)");
     ui->le_2_output->setStyleSheet("background: white; color: rgb(255,107,85)");
     ui->le_3_output->setStyleSheet("background: white; color: rgb(255,107,85)");
 
-    FitImage();
+    FitImage(); // Подгонка изображения под размер окна
 }
+
+// Создание временного overlay для плавных переходов
+QLabel* AndroidWindow::createOverlayLabel()
+{
+    QLabel* overlay = new QLabel(this);
+    overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    overlay->setAlignment(Qt::AlignCenter);
+    overlay->resize(this->size());
+    overlay->hide();
+    return overlay;
+}
+
+
 
 void AndroidWindow::SetPixmap(const QString path) {
     active_pixmap = QPixmap(path);
@@ -229,24 +242,142 @@ void AndroidWindow::showEvent(QShowEvent *event) {
     FitImage();
 }
 
-void AndroidWindow::addImageTransition(QSequentialAnimationGroup *group,
-                                       const AnimationFrame& frame)
+
+// Плавный переход к новому изображению с эффектом виньетирования
+void AndroidWindow::crossFadeToImage(const QString& newImagePath,
+                                     float intensity,
+                                     float radius,
+                                     int duration)
 {
-    if (!QFile::exists(frame.imagePath)) {
-        qWarning() << "Image file not found:" << frame.imagePath;
+#if DEBUG_ANIMATION
+    qDebug() << "crossFadeToImage: начало для" << newImagePath;
+#endif
+
+    QLabel* overlay = createOverlayLabel();
+#if DEBUG_ANIMATION
+    qDebug() << "Создан overlay:" << overlay;
+#endif
+
+    QPixmap newPixmap(newImagePath);
+    if (newPixmap.isNull()) {
+#if DEBUG_ANIMATION
+        qDebug() << "Ошибка: не удалось загрузить изображение" << newImagePath;
+#endif
+        overlay->deleteLater();
         return;
     }
 
-    QPropertyAnimation *delay = new QPropertyAnimation(this, nullptr);
-    delay->setDuration(frame.duration);
-    group->addAnimation(delay);
+    newPixmap = applyVignetteEffect(newPixmap, intensity, radius);
+    newPixmap = newPixmap.scaled(this->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 
-    connect(delay, &QPropertyAnimation::finished, this, [this, frame]() {
-        SetPixmapWithVignette(frame.imagePath,
-                              frame.vignetteIntensity,
-                              frame.vignetteRadius);
+    overlay->setPixmap(newPixmap);
+    overlay->show();
+    overlay->raise();
+#if DEBUG_ANIMATION
+    qDebug() << "Overlay показан с новым изображением";
+#endif
+
+    QPropertyAnimation* fadeIn = new QPropertyAnimation(overlay, "windowOpacity");
+    fadeIn->setDuration(duration);
+    fadeIn->setStartValue(0.0);
+    fadeIn->setEndValue(1.0);
+    fadeIn->setEasingCurve(QEasingCurve::InOutCubic);
+
+#if DEBUG_ANIMATION
+    connect(fadeIn, &QPropertyAnimation::stateChanged, [](QAbstractAnimation::State newState, QAbstractAnimation::State oldState){
+        qDebug() << "Состояние анимации изменилось:" << oldState << "->" << newState;
     });
+#endif
+
+    connect(fadeIn, &QPropertyAnimation::finished, this, [=]() {
+#if DEBUG_ANIMATION
+        qDebug() << "Анимация crossFadeToImage завершена для" << newImagePath;
+#endif
+        active_pixmap = newPixmap;
+        lbl_new_.setPixmap(newPixmap);
+        lbl_new_.setFixedSize(newPixmap.size());
+#if DEBUG_ANIMATION
+        qDebug() << "Основное изображение обновлено";
+#endif
+        overlay->deleteLater();
+    });
+
+    fadeIn->start(QPropertyAnimation::DeleteWhenStopped);
+#if DEBUG_ANIMATION
+    qDebug() << "Анимация crossFadeToImage запущена";
+#endif
 }
+
+// Плавное появление/исчезновение виджетов
+void AndroidWindow::fadeWidgets(bool fadeIn, int duration, std::function<void()> callback)
+{
+    qDebug() << (fadeIn ? "Показ" : "Скрытие") << "виджетов, длительность:" << duration;
+
+    QParallelAnimationGroup* group = new QParallelAnimationGroup(this);
+    group->setObjectName(fadeIn ? "FadeInGroup" : "FadeOutGroup");
+
+    for (QWidget* widget : getAllWidgets()) {
+        if (fadeIn) {
+            widget->setWindowOpacity(0.0);
+            widget->show();
+        }
+
+        QPropertyAnimation* anim = new QPropertyAnimation(widget, "windowOpacity", group);
+        anim->setDuration(duration);
+        anim->setStartValue(fadeIn ? 0.0 : widget->windowOpacity());
+        anim->setEndValue(fadeIn ? 1.0 : 0.0);
+        anim->setEasingCurve(QEasingCurve::OutQuad);
+        group->addAnimation(anim);
+    }
+
+    connect(group, &QParallelAnimationGroup::finished, [=]() {
+        if (!fadeIn) {
+            for (QWidget* widget : getAllWidgets()) {
+                widget->hide();
+            }
+        }
+        if (callback) {
+            callback();
+        }
+        group->deleteLater();
+    });
+
+    group->start();
+}
+
+// Добавление комплексного перехода (фон + виджеты)
+void AndroidWindow::addComplexTransition(QSequentialAnimationGroup* group,
+                                         const AnimationFrame& frame)
+{
+    QParallelAnimationGroup* parallelGroup = new QParallelAnimationGroup(group);
+
+    // Анимация фона
+    QVariantAnimation* bgAnim = new QVariantAnimation(parallelGroup);
+    bgAnim->setDuration(frame.duration);
+    bgAnim->setStartValue(0);
+    bgAnim->setEndValue(1);
+    connect(bgAnim, &QVariantAnimation::finished, [=]() {
+        crossFadeToImage(frame.imagePath, frame.vignetteIntensity,
+                         frame.vignetteRadius, frame.duration);
+    });
+    parallelGroup->addAnimation(bgAnim);
+
+    // Анимация виджетов только для кадра, где hideWidgets = true
+    if (frame.hideWidgets) {
+        QVariantAnimation* widgetsAnim = new QVariantAnimation(parallelGroup);
+        widgetsAnim->setDuration(frame.duration);
+        widgetsAnim->setStartValue(0);
+        widgetsAnim->setEndValue(1);
+        connect(widgetsAnim, &QVariantAnimation::finished, [=]() {
+            fadeWidgets(false, frame.duration, nullptr);
+        });
+        parallelGroup->addAnimation(widgetsAnim);
+    }
+
+    group->addAnimation(parallelGroup);
+}
+
+
 
 QList<QWidget*> AndroidWindow::getAllWidgets()
 {
@@ -274,58 +405,62 @@ void AndroidWindow::setWidgetsVisible(bool visible)
     }
 }
 
+// Обработчик нажатия кнопки с анимацией
 void AndroidWindow::on_pushButton_clicked()
 {
-    // Создаем последовательность анимаций
-    QSequentialAnimationGroup *animationGroup = new QSequentialAnimationGroup(this);
-
-    // Первое изображение с сильным виньетированием
-    SetPixmapWithVignette(":/background/images/background_click_2.png", 0.7f, 0.5f);
-
-    // Определяем кадры анимации с разными параметрами виньетирования
-    QVector<AnimationFrame> animationFrames = {
-        {":/background/images/background_click_3.png", 0.6f, 0.6f, 200}, // Среднее виньетирование
-        {":/background/images/background_click_4.png", 0.5f, 0.7f, 200},  // Сильное виньетирование
-        {":/background/images/background_click_5.png", 0.4f, 0.8f, 200}, // Слабое виньетирование
-        {":/background/images/background_click_6.png", 0.3f, 0.9f, 300},  // Сильное виньетирование
-        {":/background/images/backgroundbackground_click_7.png", 0.0f, 1.0f, 1000},  // Очень слабое виньетирование
-       // {":/background/images/background_click_8.png", 0.0f, 1.0f, 1000},
-        {":/background/images/background_click_9.png", 0.0f, 1.0f, 1500},
-        {":/background/images/background_click_10.png", 0.0f, 1.0f, 1000},
-
-    };
-
-    // Добавляем все кадры в анимацию
-    for (const auto& frame : animationFrames) {
-        addImageTransition(animationGroup, frame);
+    if (!currentAnimation.isNull() && currentAnimation->state() == QAbstractAnimation::Running) {
+        qDebug() << "Анимация уже выполняется, пропускаем";
+        return;
     }
 
-    // Кадр перед последним - скрываем виджеты
-    QPropertyAnimation *hideWidgets = new QPropertyAnimation(this, nullptr);
-    hideWidgets->setDuration(0); // Мгновенное действие
-    animationGroup->addAnimation(hideWidgets);
-    connect(hideWidgets, &QPropertyAnimation::finished, this, [this]() {
-        setWidgetsVisible(false); // Скрываем все виджеты
+    qDebug() << "=== Новая анимация запущена ===";
+
+    if (!currentAnimation.isNull()) {
+        currentAnimation->stop();
+        currentAnimation->deleteLater();
+    }
+
+    currentAnimation = new QSequentialAnimationGroup(this);
+    currentAnimation->setObjectName("MainAnimationGroup");
+
+    SetPixmapWithVignette(":/background/images/background_click_2.png", 0.7f, 0.5f);
+
+    QVector<AnimationFrame> animationFrames = {
+                                               {":/background/images/background_click_3.png", 0.6f, 0.6f, 500, false, "Кадр 3"},
+                                               {":/background/images/background_click_4.png", 0.5f, 0.7f, 500, false, "Кадр 4"},
+                                               {":/background/images/background_click_5.png", 0.4f, 0.8f, 1000, false, "Кадр 5"},
+                                               {":/background/images/background_click_6.png", 0.3f, 0.9f, 1000, false, "Кадр 6"},
+                                               {":/background/images/background_click_7.png", 0.3f, 0.9f, 1000, false, "Кадр 7"},
+                                               {":/background/images/background_click_8.png", 0.3f, 0.9f, 1000, false, "Кадр 8"},
+                                               {":/background/images/background_click_9.png", 0.0f, 1.0f, 500, true, "Кадр 9 (скрытие)"},
+                                               };
+
+    for (const auto& frame : animationFrames) {
+        addComplexTransition(currentAnimation, frame);
+    }
+
+    // Добавляем анимацию возврата к базовому фону
+    QVariantAnimation* finalAnim = new QVariantAnimation(currentAnimation);
+    finalAnim->setDuration(500);
+    finalAnim->setStartValue(0);
+    finalAnim->setEndValue(1);
+    connect(finalAnim, &QVariantAnimation::finished, [=]() {
+        // Плавный переход к базовому фону
+        crossFadeToImage(":/background/images/background_blurry.png", 0.7f, 0.5f, 500);
+        // Показываем виджеты после смены фона
+        fadeWidgets(true, 500, [this]() {
+            MakeCalculations();
+        });
+    });
+    currentAnimation->addAnimation(finalAnim);
+
+    connect(currentAnimation, &QSequentialAnimationGroup::finished, this, [this]() {
+        qDebug() << "Все анимации завершены";
+        currentAnimation->deleteLater();
+        currentAnimation.clear();
     });
 
-    // Последний кадр - показываем виджеты и устанавливаем финальное изображение
-    AnimationFrame finalFrame = {":/background/images/background_blurry.png", 0.7f, 0.5f, 321};
-    addImageTransition(animationGroup, finalFrame);
-
-    QPropertyAnimation *showWidgets = new QPropertyAnimation(this, nullptr);
-    showWidgets->setDuration(0); // Мгновенное действие
-    animationGroup->addAnimation(showWidgets);
-    connect(showWidgets, &QPropertyAnimation::finished, this, [this]() {
-        setWidgetsVisible(true); // Показываем все виджеты
-    });
-
-    // Завершение
-    connect(animationGroup, &QSequentialAnimationGroup::finished, this, [this]() {
-        MakeCalculations();
-        sender()->deleteLater();
-    });
-
-    animationGroup->start();
+    currentAnimation->start();
 }
 
 
@@ -337,16 +472,14 @@ void AndroidWindow::on_pushButton_released()
     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button.png"));
     ui->pushButton->setIconSize(QSize(300, 100));
     // SetFolder(":/background/images/background_blurry.png");
-   // FitImage();
+    // FitImage();
 }
 
 
 void AndroidWindow::on_pushButton_pressed()
 {
     // Меняем изображение при нажатии
-   // ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
-   // ui->pushButton->setIconSize(QSize(300, 100));
+     ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
+     ui->pushButton->setIconSize(QSize(300, 100));
 
 }
-
-
