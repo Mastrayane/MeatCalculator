@@ -4,6 +4,8 @@
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QTimer>
+#include <QFile>
+#include <QPointer>
 
 
 AndroidWindow::AndroidWindow(QWidget *parent)
@@ -95,6 +97,18 @@ QPixmap AndroidWindow::applyVignetteEffect(const QPixmap &original, float intens
     return QPixmap::fromImage(image);
 }
 
+// Новая реализация метода с параметрами виньетирования
+void AndroidWindow::SetPixmapWithVignette(const QString& path,
+                                          float intensity,
+                                          float radius)
+{
+    active_pixmap = QPixmap(path);
+    if (!active_pixmap.isNull()) {
+        active_pixmap = applyVignetteEffect(active_pixmap, intensity, radius);
+        FitImage();
+    }
+}
+
 void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multiplicity_size) {
     if (path.endsWith(".svg", Qt::CaseInsensitive)) {
         // Для SVG используем QSvgRenderer
@@ -145,7 +159,7 @@ void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multi
 }
 
 void AndroidWindow::SetFolder(const QString &d) {
-    SetPixmap(d);
+    SetPixmapWithVignette(d); // Используем значения по умолчанию
 }
 
 void AndroidWindow::MakeCalculations()
@@ -215,18 +229,106 @@ void AndroidWindow::showEvent(QShowEvent *event) {
     FitImage();
 }
 
+void AndroidWindow::addImageTransition(QSequentialAnimationGroup *group,
+                                       const AnimationFrame& frame)
+{
+    if (!QFile::exists(frame.imagePath)) {
+        qWarning() << "Image file not found:" << frame.imagePath;
+        return;
+    }
+
+    QPropertyAnimation *delay = new QPropertyAnimation(this, nullptr);
+    delay->setDuration(frame.duration);
+    group->addAnimation(delay);
+
+    connect(delay, &QPropertyAnimation::finished, this, [this, frame]() {
+        SetPixmapWithVignette(frame.imagePath,
+                              frame.vignetteIntensity,
+                              frame.vignetteRadius);
+    });
+}
+
+QList<QWidget*> AndroidWindow::getAllWidgets()
+{
+    return QList<QWidget*>{
+        ui->le_heading,
+        ui->widget_substrate,
+        ui->le_input_total_weight,
+        ui->le_input_cup_weight,
+        ui->lb_total_weight,
+        ui->lb_cup_weight,
+        ui->pushButton,
+        ui->lb_1_output,
+        ui->lb_2_output,
+        ui->lb_3_output,
+        ui->le_1_output,
+        ui->le_2_output,
+        ui->le_3_output
+    };
+}
+
+void AndroidWindow::setWidgetsVisible(bool visible)
+{
+    for (auto widget : getAllWidgets()) {
+        widget->setVisible(visible);
+    }
+}
+
 void AndroidWindow::on_pushButton_clicked()
 {
-    SetFolder(":/background/images/background_click.png");
-    FitImage();
-    QTimer::singleShot(150, this, [this]() {
-        // Код, который выполнится через 500 мс
-        SetFolder(":/background/images/background_blurry.png");
-        FitImage();
-        MakeCalculations();
+    // Создаем последовательность анимаций
+    QSequentialAnimationGroup *animationGroup = new QSequentialAnimationGroup(this);
+
+    // Первое изображение с сильным виньетированием
+    SetPixmapWithVignette(":/background/images/background_click_2.png", 0.7f, 0.5f);
+
+    // Определяем кадры анимации с разными параметрами виньетирования
+    QVector<AnimationFrame> animationFrames = {
+        {":/background/images/background_click_3.png", 0.6f, 0.6f, 200}, // Среднее виньетирование
+        {":/background/images/background_click_4.png", 0.5f, 0.7f, 200},  // Сильное виньетирование
+        {":/background/images/background_click_5.png", 0.4f, 0.8f, 200}, // Слабое виньетирование
+        {":/background/images/background_click_6.png", 0.3f, 0.9f, 300},  // Сильное виньетирование
+        {":/background/images/backgroundbackground_click_7.png", 0.0f, 1.0f, 1000},  // Очень слабое виньетирование
+       // {":/background/images/background_click_8.png", 0.0f, 1.0f, 1000},
+        {":/background/images/background_click_9.png", 0.0f, 1.0f, 1500},
+        {":/background/images/background_click_10.png", 0.0f, 1.0f, 1000},
+
+    };
+
+    // Добавляем все кадры в анимацию
+    for (const auto& frame : animationFrames) {
+        addImageTransition(animationGroup, frame);
+    }
+
+    // Кадр перед последним - скрываем виджеты
+    QPropertyAnimation *hideWidgets = new QPropertyAnimation(this, nullptr);
+    hideWidgets->setDuration(0); // Мгновенное действие
+    animationGroup->addAnimation(hideWidgets);
+    connect(hideWidgets, &QPropertyAnimation::finished, this, [this]() {
+        setWidgetsVisible(false); // Скрываем все виджеты
     });
 
+    // Последний кадр - показываем виджеты и устанавливаем финальное изображение
+    AnimationFrame finalFrame = {":/background/images/background_blurry.png", 0.7f, 0.5f, 321};
+    addImageTransition(animationGroup, finalFrame);
+
+    QPropertyAnimation *showWidgets = new QPropertyAnimation(this, nullptr);
+    showWidgets->setDuration(0); // Мгновенное действие
+    animationGroup->addAnimation(showWidgets);
+    connect(showWidgets, &QPropertyAnimation::finished, this, [this]() {
+        setWidgetsVisible(true); // Показываем все виджеты
+    });
+
+    // Завершение
+    connect(animationGroup, &QSequentialAnimationGroup::finished, this, [this]() {
+        MakeCalculations();
+        sender()->deleteLater();
+    });
+
+    animationGroup->start();
 }
+
+
 
 
 void AndroidWindow::on_pushButton_released()
@@ -242,8 +344,8 @@ void AndroidWindow::on_pushButton_released()
 void AndroidWindow::on_pushButton_pressed()
 {
     // Меняем изображение при нажатии
-    ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
-    ui->pushButton->setIconSize(QSize(300, 100));
+   // ui->pushButton->setIcon(QIcon(":/background/images/calculate_button_press.png"));
+   // ui->pushButton->setIconSize(QSize(300, 100));
 
 }
 
