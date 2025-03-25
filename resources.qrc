@@ -21,6 +21,15 @@
         <file>images/background@3x.png</file>
         <file>images/background_blurry.png</file>
         <file>images/background_click.png</file>
+        <file>images/background_click_6.png</file>
+        <file>images/background_click_5.png</file>
+        <file>images/background_click_4.png</file>
+        <file>images/background_click_3.png</file>
+        <file>images/background_click_2.png</file>
+        <file>images/backgroundbackground_click_7.png</file>
+        <file>images/background_click_8.png</file>
+        <file>images/background_click_10.png</file>
+        <file>images/background_click_9.png</file>
     </qresource>
     <qresource prefix="/img_android">
         <file>images/android/text_total_weight_android.png</file>
