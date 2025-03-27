@@ -35,6 +35,7 @@ public:
     ~AndroidWindow();
 
     void SetInterface(); // Инициализация интерфейса
+    void PreloadAnimationFrames(); //Предзагрузка изоюоажений в кэш
 
 private:
     // Методы работы с изображениями
@@ -68,6 +69,8 @@ private:
     QPointer<QSequentialAnimationGroup> currentAnimation; // Указатель на текущую анимацию
     bool widgetsHidden = false; // отслеживания состояния виджетов
     bool widgetsForceVisible = false; // Новый флаг принудительной видимости
+    QVector<AnimationFrame> m_animationFrames; // Храним параметры анимации
+    QMap<QString, QPixmap> m_animationCache; // Альтернативный кэш
 
 private slots:
     void on_pushButton_clicked();    // Обработчик нажатия кнопки
