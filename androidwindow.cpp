@@ -281,7 +281,11 @@ void AndroidWindow::crossFadeToImage(const QString& newImagePath,
     fadeIn->setDuration(duration);
     fadeIn->setStartValue(0.0);
     fadeIn->setEndValue(1.0);
-    fadeIn->setEasingCurve(QEasingCurve::InOutCubic);
+    // fadeIn->setEasingCurve(QEasingCurve::InOutCubic);
+    // fadeIn->setEasingCurve(QEasingCurve::InOutSine);
+     fadeIn->setEasingCurve(QEasingCurve::OutElastic);
+   // fadeIn->setEasingCurve(QEasingCurve::Linear);
+   //  fadeIn->setEasingCurve(QEasingCurve::OutBack);
 
 #if DEBUG_ANIMATION
     connect(fadeIn, &QPropertyAnimation::stateChanged, [](QAbstractAnimation::State newState, QAbstractAnimation::State oldState){
@@ -311,34 +315,30 @@ void AndroidWindow::crossFadeToImage(const QString& newImagePath,
 // Плавное появление/исчезновение виджетов
 void AndroidWindow::fadeWidgets(bool fadeIn, int duration, std::function<void()> callback)
 {
-    qDebug() << (fadeIn ? "Показ" : "Скрытие") << "виджетов, длительность:" << duration;
+    // Убрать проверки на видимость для принудительного обновления
+    qDebug() << (fadeIn ? "Принудительный показ" : "Принудительное скрытие")
+             << "виджетов, длительность:" << duration;
 
     QParallelAnimationGroup* group = new QParallelAnimationGroup(this);
-    group->setObjectName(fadeIn ? "FadeInGroup" : "FadeOutGroup");
 
     for (QWidget* widget : getAllWidgets()) {
-        if (fadeIn) {
-            widget->setWindowOpacity(0.0);
-            widget->show();
-        }
+        widget->setAttribute(Qt::WA_TransparentForMouseEvents, fadeIn ? false : true);
+        if (fadeIn) widget->show();
 
         QPropertyAnimation* anim = new QPropertyAnimation(widget, "windowOpacity", group);
         anim->setDuration(duration);
         anim->setStartValue(fadeIn ? 0.0 : widget->windowOpacity());
         anim->setEndValue(fadeIn ? 1.0 : 0.0);
-        anim->setEasingCurve(QEasingCurve::OutQuad);
+        anim->setEasingCurve(QEasingCurve::OutQuint);
         group->addAnimation(anim);
     }
 
     connect(group, &QParallelAnimationGroup::finished, [=]() {
         if (!fadeIn) {
-            for (QWidget* widget : getAllWidgets()) {
-                widget->hide();
-            }
+            qDebug() << "Финализация скрытия виджетов";
+            for (QWidget* widget : getAllWidgets()) widget->hide();
         }
-        if (callback) {
-            callback();
-        }
+        if (callback) callback();
         group->deleteLater();
     });
 
@@ -346,6 +346,7 @@ void AndroidWindow::fadeWidgets(bool fadeIn, int duration, std::function<void()>
 }
 
 // Добавление комплексного перехода (фон + виджеты)
+/*
 void AndroidWindow::addComplexTransition(QSequentialAnimationGroup* group,
                                          const AnimationFrame& frame)
 {
@@ -376,7 +377,36 @@ void AndroidWindow::addComplexTransition(QSequentialAnimationGroup* group,
 
     group->addAnimation(parallelGroup);
 }
+*/
 
+void AndroidWindow::addComplexTransition(QSequentialAnimationGroup* group,
+                                         const AnimationFrame& frame)
+{
+    QParallelAnimationGroup* parallelGroup = new QParallelAnimationGroup(group);
+
+    // Анимация фона
+    QVariantAnimation* bgAnim = new QVariantAnimation(parallelGroup);
+    bgAnim->setDuration(frame.duration);
+    bgAnim->setStartValue(0);
+    bgAnim->setEndValue(1);
+
+    // Точка срабатывания - 90% прогресса анимации
+    connect(bgAnim, &QVariantAnimation::valueChanged, [=](const QVariant &value) {
+        if (frame.hideWidgets && !widgetsHidden && value.toFloat() >= 0.9f) {
+            widgetsHidden = true;
+            qDebug() << "Скрытие виджетов для кадра:" << frame.debugName;
+            fadeWidgets(false, frame.duration/4, nullptr); // Укороченная длительность
+        }
+    });
+
+    connect(bgAnim, &QVariantAnimation::finished, [=]() {
+        crossFadeToImage(frame.imagePath, frame.vignetteIntensity,
+                         frame.vignetteRadius, frame.duration);
+    });
+    parallelGroup->addAnimation(bgAnim);
+
+    group->addAnimation(parallelGroup);
+}
 
 
 QList<QWidget*> AndroidWindow::getAllWidgets()
@@ -413,7 +443,15 @@ void AndroidWindow::on_pushButton_clicked()
         return;
     }
 
+    // Принудительный сброс состояния виджетов
+    for (auto widget : getAllWidgets()) {
+        widget->setWindowOpacity(1.0);
+        widget->show();
+    }
+    widgetsHidden = false;
+
     qDebug() << "=== Новая анимация запущена ===";
+    widgetsHidden = false; // Сбрасываем флаг перед началом новой анимации
 
     if (!currentAnimation.isNull()) {
         currentAnimation->stop();
@@ -423,16 +461,16 @@ void AndroidWindow::on_pushButton_clicked()
     currentAnimation = new QSequentialAnimationGroup(this);
     currentAnimation->setObjectName("MainAnimationGroup");
 
-    SetPixmapWithVignette(":/background/images/background_click_2.png", 0.7f, 0.5f);
+    SetPixmapWithVignette(":/background/images/background_click_2.png", 0.4f, 0.8f);
 
     QVector<AnimationFrame> animationFrames = {
-                                               {":/background/images/background_click_3.png", 0.6f, 0.6f, 500, false, "Кадр 3"},
-                                               {":/background/images/background_click_4.png", 0.5f, 0.7f, 500, false, "Кадр 4"},
+                                               {":/background/images/background_click_3.png", 0.4f, 0.8f, 1000, false, "Кадр 3"},
+                                               {":/background/images/background_click_4.png", 0.4f, 0.8f, 1000, false, "Кадр 4"},
                                                {":/background/images/background_click_5.png", 0.4f, 0.8f, 1000, false, "Кадр 5"},
                                                {":/background/images/background_click_6.png", 0.3f, 0.9f, 1000, false, "Кадр 6"},
                                                {":/background/images/background_click_7.png", 0.3f, 0.9f, 1000, false, "Кадр 7"},
                                                {":/background/images/background_click_8.png", 0.3f, 0.9f, 1000, false, "Кадр 8"},
-                                               {":/background/images/background_click_9.png", 0.0f, 1.0f, 500, true, "Кадр 9 (скрытие)"},
+                                               {":/background/images/background_click_9.png", 0.0f, 1.0f, 1000, true, "Кадр 9 (скрытие)"},
                                                };
 
     for (const auto& frame : animationFrames) {
@@ -441,15 +479,24 @@ void AndroidWindow::on_pushButton_clicked()
 
     // Добавляем анимацию возврата к базовому фону
     QVariantAnimation* finalAnim = new QVariantAnimation(currentAnimation);
-    finalAnim->setDuration(500);
+    finalAnim->setDuration(600);
     finalAnim->setStartValue(0);
     finalAnim->setEndValue(1);
     connect(finalAnim, &QVariantAnimation::finished, [=]() {
-        // Плавный переход к базовому фону
         crossFadeToImage(":/background/images/background_blurry.png", 0.7f, 0.5f, 500);
-        // Показываем виджеты после смены фона
-        fadeWidgets(true, 500, [this]() {
-            MakeCalculations();
+
+        // Явный принудительный показ виджетов
+        QTimer::singleShot(500, [this]() {
+            qDebug() << "Принудительный показ виджетов";
+            for (auto widget : getAllWidgets()) {
+                widget->show();
+                widget->setWindowOpacity(1.0);
+            }
+            fadeWidgets(true, 500, [this]() {
+                MakeCalculations();
+                widgetsHidden = false;
+                qDebug() << "Виджеты восстановлены";
+            });
         });
     });
     currentAnimation->addAnimation(finalAnim);

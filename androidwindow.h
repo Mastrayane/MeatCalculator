@@ -66,6 +66,8 @@ private:
     QPixmap active_pixmap;       // Текущее фоновое изображение
     QLabel lbl_new_{this};       // Метка для отображения фона
     QPointer<QSequentialAnimationGroup> currentAnimation; // Указатель на текущую анимацию
+    bool widgetsHidden = false; // отслеживания состояния виджетов
+    bool widgetsForceVisible = false; // Новый флаг принудительной видимости
 
 private slots:
     void on_pushButton_clicked();    // Обработчик нажатия кнопки
