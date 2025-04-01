@@ -73,6 +73,7 @@ void AndroidWindow::SetInterface()
     }));
 }
 
+// Асинхронная загрузка кадра
 void AndroidWindow::asyncPreloadFrame(const AnimationFrame& frame) {
     if (QThread::currentThread()->isInterruptionRequested())
         return;
@@ -87,11 +88,13 @@ void AndroidWindow::asyncPreloadFrame(const AnimationFrame& frame) {
     }
 }
 
+// Завершение предзагрузки
 void AndroidWindow::finalizePreload() {
     // Вызывается когда все фоны предзагружены
     qDebug() << "Все ресурсы предзагружены";
 }
 
+// Предзагрузка изображений для анимации в кэш
 void AndroidWindow::PreloadAnimationFrames() {
     // Инициализируем параметры анимации
     m_animationFrames = {
@@ -133,7 +136,7 @@ QLabel* AndroidWindow::createOverlayLabel()
 }
 
 
-
+// Установка фонового изображения
 void AndroidWindow::SetPixmap(const QString path) {
     active_pixmap = QPixmap(path);
     if (!active_pixmap.isNull()) {
@@ -143,6 +146,7 @@ void AndroidWindow::SetPixmap(const QString path) {
     }
 }
 
+// Применение виньетки
 QPixmap AndroidWindow::applyVignetteEffect(const QPixmap &original, float intensity, float radius)
 {
     QImage image = original.toImage();
@@ -171,6 +175,7 @@ QPixmap AndroidWindow::applyVignetteEffect(const QPixmap &original, float intens
     return QPixmap::fromImage(image);
 }
 
+// Установка изображения с виньеткой
 void AndroidWindow::SetPixmapWithVignette(const QString& path,
                                           float intensity,
                                           float radius)
@@ -203,6 +208,7 @@ void AndroidWindow::SetPixmapWithVignette(const QString& path,
     }
 }
 
+// Установка изображения для виджета
 void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multiplicity_size) {
     if (path.endsWith(".svg", Qt::CaseInsensitive)) {
         // Для SVG используем QSvgRenderer
@@ -252,10 +258,12 @@ void AndroidWindow::SetPixmap(QWidget* widget, const QString& path, double multi
     }
 }
 
+// Установка фоновой папки
 void AndroidWindow::SetFolder(const QString &d) {
     SetPixmapWithVignette(d); // Используем значения по умолчанию
 }
 
+// Вычисление данных на основе введенных значений
 void AndroidWindow::MakeCalculations()
 {
     bool ok;
@@ -291,6 +299,7 @@ void AndroidWindow::MakeCalculations()
     }
 }
 
+// Подгонка изображения под размер окна
 void AndroidWindow::FitImage() {
     if (active_pixmap.isNull()) return;
 
@@ -313,14 +322,8 @@ void AndroidWindow::FitImage() {
     lbl_new_.move(x, y); // Центрируем вместо (0, 0)
 }
 
- /*
-void AndroidWindow::resizeEvent(QResizeEvent *event) {
-    QMainWindow::resizeEvent(event);
-    FitImage();
-}
-*/
 
-// В обработчике изменения размера окна
+// Обработчик события изменения размера окна
 void AndroidWindow::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
 
@@ -332,6 +335,7 @@ void AndroidWindow::resizeEvent(QResizeEvent* event) {
     FitImage();
 }
 
+// Обработчик события отображения окна
 void AndroidWindow::showEvent(QShowEvent *event) {
     QMainWindow::showEvent(event);
     FitImage();
@@ -414,6 +418,8 @@ void AndroidWindow::crossFadeToImage(const QString& newImagePath,
 #endif
 }
 
+
+
 // Плавное появление/исчезновение виджетов
 void AndroidWindow::fadeWidgets(bool fadeIn, int duration, std::function<void()> callback)
 {
@@ -477,7 +483,7 @@ void AndroidWindow::addComplexTransition(QSequentialAnimationGroup* group,
     group->addAnimation(parallelGroup);
 }
 
-
+// Получение списка всех виджетов окна
 QList<QWidget*> AndroidWindow::getAllWidgets()
 {
     return QList<QWidget*>{
@@ -497,6 +503,7 @@ QList<QWidget*> AndroidWindow::getAllWidgets()
     };
 }
 
+// Управление видимостью виджетов
 void AndroidWindow::setWidgetsVisible(bool visible)
 {
     for (auto widget : getAllWidgets()) {
@@ -573,8 +580,6 @@ void AndroidWindow::on_pushButton_clicked()
 
     currentAnimation->start();
 }
-
-
 
 
 void AndroidWindow::on_pushButton_released()
