@@ -19,6 +19,8 @@ AndroidWindow::AndroidWindow(QWidget *parent)
 
 AndroidWindow::~AndroidWindow()
 {
+    m_preloadWatcher.cancel();
+    m_preloadWatcher.waitForFinished();
     delete ui; // Освобождаем ресурсы UI
 }
 
@@ -60,13 +62,40 @@ void AndroidWindow::SetInterface()
     ui->le_3_output->setStyleSheet("background: white; color: rgb(255,107,85)");
 
     FitImage(); // Подгонка изображения под размер окна
+    m_essentialLoaded = true;
 
-    PreloadAnimationFrames(); // Предзагрузка всех ресурсов анимации
+    // Асинхронная предзагрузка остальных ресурсов
+    m_preloadWatcher.setFuture(QtConcurrent::run([this]() {
+        for (const auto& frame : m_animationFrames) {
+            if (QThread::currentThread()->isInterruptionRequested()) break;
+            asyncPreloadFrame(frame);
+        }
+    }));
+}
+
+void AndroidWindow::asyncPreloadFrame(const AnimationFrame& frame) {
+    if (QThread::currentThread()->isInterruptionRequested())
+        return;
+
+    QPixmap pix(frame.imagePath);
+    if (!pix.isNull()) {
+        QPixmap processed = applyVignetteEffect(pix, frame.vignetteIntensity, frame.vignetteRadius);
+        processed = processed.scaled(this->size() * 1.2, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+
+        QMutexLocker locker(&m_cacheMutex);
+        m_animationCache.insert(frame.imagePath, processed);
+    }
+}
+
+void AndroidWindow::finalizePreload() {
+    // Вызывается когда все фоны предзагружены
+    qDebug() << "Все ресурсы предзагружены";
 }
 
 void AndroidWindow::PreloadAnimationFrames() {
     // Инициализируем параметры анимации
     m_animationFrames = {
+        {":/background/images/background_blurry.png",  0.7f, 0.5f, 0,   false, "Базовый фон"},
         {":/background/images/background_click_2.png", 0.4f, 0.8f, 0,   false, "Начальный кадр"},
         {":/background/images/background_click_3.png", 0.4f, 0.8f, 700, false, "Кадр 3"},
         {":/background/images/background_click_4.png", 0.4f, 0.8f, 700, false, "Кадр 4"},
@@ -75,43 +104,21 @@ void AndroidWindow::PreloadAnimationFrames() {
         {":/background/images/background_click_7.png", 0.3f, 0.9f, 700, false, "Кадр 7"},
         {":/background/images/background_click_8.png", 0.3f, 0.9f, 700, false, "Кадр 8"},
         {":/background/images/background_click_9.png", 0.0f, 1.0f, 700, true,  "Кадр 9 (скрытие)"},
+        {":/background/images/background_click_9.png", 0.0f, 1.0f, 700, true,  "Кадр 9 (скрытие)"},
         {":/background/images/background_blurry.png",  0.7f, 0.5f, 0,   false, "Базовый фон"}
+
     };
 
-    // Очищаем кэши
     QPixmapCache::clear();
     m_animationCache.clear();
 
-    // Предзагрузка с учетом параметров
-    for (const AnimationFrame& frame : m_animationFrames) {
-        QPixmap pix(frame.imagePath);
-
-        if (!pix.isNull()) {
-            // Применяем виньетирование
-            QPixmap processed = applyVignetteEffect(pix,
-                                                    frame.vignetteIntensity,
-                                                    frame.vignetteRadius
-                                                    );
-
-            // Масштабируем
-            processed = processed.scaled(
-                this->size() * 1.2,
-                Qt::KeepAspectRatioByExpanding,
-                Qt::SmoothTransformation
-                );
-
-            // Ключ кэша: путь + параметры
-            QString cacheKey = QString("%1_%2_%3")
-                                   .arg(frame.imagePath)
-                                   .arg(frame.vignetteIntensity)
-                                   .arg(frame.vignetteRadius);
-
-            QPixmapCache::insert(cacheKey, processed);
-            m_animationCache.insert(cacheKey, processed);
-
-            qDebug() << "Preprocessed:" << cacheKey;
+    // Запускаем асинхронную предзагрузку
+    m_preloadWatcher.setFuture(QtConcurrent::run([this]() {
+        for (const auto& frame : m_animationFrames) {
+            if (QThread::currentThread()->isInterruptionRequested()) break;
+            asyncPreloadFrame(frame);
         }
-    }
+    }));
 }
 
 // Создание временного overlay для плавных переходов
@@ -164,34 +171,34 @@ QPixmap AndroidWindow::applyVignetteEffect(const QPixmap &original, float intens
     return QPixmap::fromImage(image);
 }
 
-// Новая реализация метода с параметрами виньетирования
 void AndroidWindow::SetPixmapWithVignette(const QString& path,
                                           float intensity,
                                           float radius)
 {
-    // Генерируем ключ кэша
-    QString cacheKey = QString("%1_%2_%3")
-                           .arg(path)
-                           .arg(intensity)
-                           .arg(radius);
+    static QPixmap fallback;
 
+    // Быстрая проверка кэша без блокировки
     QPixmap pix;
-
-    // Пытаемся получить из кэша
-    if (m_animationCache.contains(cacheKey)) {
-        pix = m_animationCache.value(cacheKey);
-    }
-    else if (!QPixmapCache::find(cacheKey, &pix)) {
-        // Если нет в кэше, обрабатываем в реальном времени
-        pix = QPixmap(path);
-        pix = applyVignetteEffect(pix, intensity, radius);
-        pix = pix.scaled(this->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-
-        QPixmapCache::insert(cacheKey, pix);
-    }
-
-    if (!pix.isNull()) {
+    if (QPixmapCache::find(path, &pix)) {
         active_pixmap = pix;
+        FitImage();
+        return;
+    }
+
+    // Если ресурс еще не загружен
+    if (!m_essentialLoaded) {
+        // Синхронная загрузка только если критически важно
+        QPixmap tmp(path);
+        tmp = applyVignetteEffect(tmp, intensity, radius);
+        active_pixmap = tmp.scaled(size(), Qt::KeepAspectRatioByExpanding);
+        FitImage();
+    } else {
+        // Показываем плейсхолдер
+        if (fallback.isNull()) {
+            fallback = QPixmap(10, 10);
+            fallback.fill(Qt::gray);
+        }
+        active_pixmap = fallback;
         FitImage();
     }
 }
@@ -358,7 +365,11 @@ void AndroidWindow::crossFadeToImage(const QString& newImagePath,
     newPixmap = applyVignetteEffect(newPixmap, intensity, radius);
     newPixmap = newPixmap.scaled(this->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 
+
+
     overlay->setPixmap(newPixmap);
+    overlay->setFixedSize(newPixmap.size());
+    overlay->move((width() - newPixmap.width()) / 2, (height() - newPixmap.height()) / 2);
     overlay->show();
     overlay->raise();
 #if DEBUG_ANIMATION
@@ -388,6 +399,9 @@ void AndroidWindow::crossFadeToImage(const QString& newImagePath,
         active_pixmap = newPixmap;
         lbl_new_.setPixmap(newPixmap);
         lbl_new_.setFixedSize(newPixmap.size());
+        // Явное центрирование основной метки
+        lbl_new_.move((width() - newPixmap.width()) / 2, (height() - newPixmap.height()) / 2);
+        overlay->deleteLater();
 #if DEBUG_ANIMATION
         qDebug() << "Основное изображение обновлено";
 #endif
