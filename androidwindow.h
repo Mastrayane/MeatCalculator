@@ -12,6 +12,10 @@
 #include <functional>
 #include <QPauseAnimation>
 
+#include <QtConcurrent/QtConcurrent>
+#include <QMutex>
+#include <QFutureWatcher>
+
 namespace Ui {
 class AndroidWindow;
 }
@@ -35,6 +39,7 @@ public:
     ~AndroidWindow();
 
     void SetInterface(); // Инициализация интерфейса
+    void PreloadAnimationFrames(); //Предзагрузка изоюоажений в кэш
 
 private:
     // Методы работы с изображениями
@@ -66,6 +71,21 @@ private:
     QPixmap active_pixmap;       // Текущее фоновое изображение
     QLabel lbl_new_{this};       // Метка для отображения фона
     QPointer<QSequentialAnimationGroup> currentAnimation; // Указатель на текущую анимацию
+    bool widgetsHidden = false; // отслеживания состояния виджетов
+    bool widgetsForceVisible = false; // Новый флаг принудительной видимости
+
+    // Кэш предзагрузки
+    QVector<AnimationFrame> m_animationFrames; // Храним параметры анимации
+    QMap<QString, QPixmap> m_animationCache; // Альтернативный кэш
+
+    // Многопточность
+    QFutureWatcher<void> m_preloadWatcher;
+    QMutex m_cacheMutex;
+    bool m_essentialLoaded = false;
+    void asyncPreloadFrame(const AnimationFrame& frame);
+    void finalizePreload();
+
+
 
 private slots:
     void on_pushButton_clicked();    // Обработчик нажатия кнопки
