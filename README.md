@@ -49,4 +49,8 @@
 
 ### Минимальная версия Android:
 5.0 Lollipop (API 21)
+
+## Скачать приложение
+
+[![Latest Release](https://img.shields.io/github/v/release/Mastrayane/MeatCalculator?label=Download%20APK&style=for-the-badge)](https://github.com/Mastrayane/MeatCalculator/releases/latest/download/MeatCalculator.apk)
   
